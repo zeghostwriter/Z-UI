@@ -1,0 +1,74 @@
+[package]
+name = "z-panel"
+description = "Z-UI: a control panel for zray-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "z-ui"
+path = "src/main.rs"
+
+[dependencies]
+z-common = { workspace = true }
+z-db = { workspace = true }
+z-node = { workspace = true }
+zero-config = { workspace = true }
+zero-core = { workspace = true }
+zero-discovery = { workspace = true }
+zero-net = { workspace = true }
+zero-runtime = { workspace = true }
+x509-parser = "0.18"
+webpki-roots = "1"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+rust-embed = { workspace = true }
+mime_guess = { workspace = true }
+clap = { workspace = true }
+argon2 = { workspace = true }
+jsonwebtoken = { workspace = true }
+hmac = { workspace = true }
+sha1 = { workspace = true }
+qrcode = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+libc = { workspace = true }
+tokio-stream = { workspace = true }
+percent-encoding = { workspace = true }
+sha2 = { workspace = true }
+utoipa = { workspace = true }
+flate2 = { workspace = true }
+url = { workspace = true }
+chacha20poly1305 = { workspace = true }
+utoipa-axum = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+tokio-rustls = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+# The ACME client (certificates), with its own HTTP over the panel's proxy-aware layer.
+instant-acme = { version = "0.8", default-features = false, features = ["ring", "rcgen"] }
+rcgen = { version = "0.14", default-features = false, features = ["pem", "ring"] }
+http = "1"
+http-body-util = "0.1"
+bytes = "1"
+time = "0.3"
+# Updates: versions, the release archive, and the signature on its checksums.
+semver = "1"
+tar = { version = "0.4", default-features = false }
+ring = "0.17"
+
+[dev-dependencies]
+sqlx = { workspace = true }
+# The test authority reads certificate requests.
+rcgen = { version = "0.14", default-features = false, features = ["pem", "ring", "x509-parser"] }
