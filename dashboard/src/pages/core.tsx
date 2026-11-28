@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, post, put, type CoreView, type CoreWarning } from "@/lib/api";
+import { api, post, put, STALE_TIME, type CoreView, type CoreWarning } from "@/lib/api";
 import { canonical, type Json } from "@/lib/core-form";
 import { useCan } from "@/lib/permissions";
 
@@ -50,7 +50,9 @@ export function CorePage() {
   const { t } = useTranslation();
   const client = useQueryClient();
   const canWrite = useCan("core.write");
-  const core = useQuery({ queryKey: ["core"], queryFn: () => api<CoreView>("core"), refetchInterval: 15_000 });
+  // Reading the core's config reaches the core; it changes on save, which
+  // invalidates this key, so a slow refresh is enough while the page is open.
+  const core = useQuery({ queryKey: ["core"], queryFn: () => api<CoreView>("core"), staleTime: STALE_TIME.settings, refetchInterval: 60_000 });
   const [tab, setTab] = useState<Tab>("outbounds");
   // What is being edited; the stored settings stay as they are until applied.
   const [draft, setDraft] = useState<Json | null>(null);

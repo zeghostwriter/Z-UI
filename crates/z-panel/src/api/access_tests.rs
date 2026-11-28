@@ -1,9 +1,12 @@
 //! Who may do what: roles, resellers and their quotas, API keys and the
 //! audit log, tried through the API as the dashboard and scripts use it.
 
-use axum::http::StatusCode;
+use std::time::Instant;
+
+use axum::http::{header, StatusCode};
 use serde_json::{json, Value};
 
+use crate::auth::rate_limit::READ_LIMIT;
 use crate::server::testing::{panel, Panel, Reply};
 
 const GB: i64 = 1 << 30;
@@ -1669,6 +1672,63 @@ async fn the_document_is_served_to_whoever_is_signed_in_with_this_panels_address
     let (_, shop) = reseller(&panel, &owner, "shop", json!({})).await;
     assert_eq!(
         panel.get("/api/openapi.json", Some(&shop)).await.status,
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn a_read_budget_is_per_identity_and_does_not_stop_writes_or_keys() {
+    let (panel, owner) = world().await;
+    let me = panel.get("/api/auth/me", Some(&owner)).await.json();
+    let session = format!("session:{}", me["id"].as_i64().unwrap());
+    let now = Instant::now();
+    // The `me` read above already spent one; fill whatever is left of the
+    // window rather than assuming how many that was.
+    for _ in 0..READ_LIMIT {
+        if panel.state.read_limiter().check(&session, now).is_some() {
+            break;
+        }
+    }
+
+    let limited = panel.get("/api/health", Some(&owner)).await;
+    assert_eq!(
+        limited.status,
+        StatusCode::TOO_MANY_REQUESTS,
+        "{}",
+        limited.body
+    );
+    assert_eq!(limited.json()["error"], "too_many_requests");
+    assert!(limited.json()["retry_after"].as_u64().unwrap() > 0);
+    let retry = limited.headers[header::RETRY_AFTER].to_str().unwrap();
+    assert!(retry.parse::<u64>().unwrap() > 0, "{retry}");
+
+    // A write from the same session is still allowed.
+    let write = panel
+        .send(
+            "POST",
+            "/api/groups",
+            Some(&owner),
+            Some(json!({"name": ""})),
+        )
+        .await;
+    assert_eq!(write.status, StatusCode::BAD_REQUEST, "{}", write.body);
+    assert_ne!(write.json()["error"], "too_many_requests");
+
+    // A key made under the same admin gets its own budget, as before.
+    let created = panel
+        .send(
+            "POST",
+            "/api/api-keys",
+            Some(&owner),
+            Some(json!({"name": "bot", "permissions": "*"})),
+        )
+        .await;
+    assert_eq!(created.status, StatusCode::CREATED, "{}", created.body);
+    let secret = created.json()["key"].as_str().unwrap().to_string();
+    assert_eq!(
+        with(&panel, &secret, "GET", "/api/health", None)
+            .await
+            .status,
         StatusCode::OK
     );
 }

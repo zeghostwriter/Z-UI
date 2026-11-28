@@ -12,7 +12,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SwitchField } from "@/components/ui/switch";
 import { TextareaField } from "@/components/ui/textarea";
-import { api, post, put, type ChannelStatus, type NotifyChannel, type NotifyView } from "@/lib/api";
+import { api, post, put, STALE_TIME, type ChannelStatus, type NotifyChannel, type NotifyView } from "@/lib/api";
 import { fromView, isDirty, parseChatIds, toPayload, type NotifyForm } from "@/lib/notify-form";
 import { relative } from "@/lib/users";
 
@@ -76,7 +76,7 @@ const eventRows: { key: "data_low" | "expiring" | "limited" | "expired" | "core"
 export function NotificationsPage() {
   const { t } = useTranslation();
   const client = useQueryClient();
-  const stored = useQuery({ queryKey: ["notifications"], queryFn: () => api<NotifyView>("notifications"), refetchInterval: 10_000 });
+  const stored = useQuery({ queryKey: ["notifications"], queryFn: () => api<NotifyView>("notifications"), staleTime: STALE_TIME.settings, refetchInterval: 60_000 });
   const [form, setForm] = useState<NotifyForm | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const view = stored.data?.settings;

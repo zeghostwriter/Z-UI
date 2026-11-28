@@ -13,6 +13,9 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use z_node::Node;
 
 use crate::auth::rate_limit::LoginLimiter;
+use crate::auth::rate_limit::{
+    RequestLimiter, READ_LIMIT, READ_WINDOW, SUBSCRIPTION_LIMIT, SUBSCRIPTION_WINDOW,
+};
 use crate::auth::session::SessionKeys;
 use crate::config::PanelConfig;
 
@@ -30,6 +33,11 @@ struct Inner {
     limiter: LoginLimiter,
     /// Wrong API keys, counted by address.
     key_limiter: LoginLimiter,
+    /// Authenticated GETs, counted per session or key so an open dashboard
+    /// cannot repeat costly reads without limit.
+    read_limiter: RequestLimiter,
+    /// Subscription fetches, counted by the address they come from.
+    subscription_limiter: RequestLimiter,
     /// While no admin exists: the one-time token that may create the first,
     /// printed to the log at start.
     setup_token: Mutex<Option<String>>,
@@ -91,6 +99,8 @@ impl AppState {
                 session_keys,
                 limiter: LoginLimiter::default(),
                 key_limiter: LoginLimiter::default(),
+                read_limiter: RequestLimiter::new(READ_LIMIT, READ_WINDOW),
+                subscription_limiter: RequestLimiter::new(SUBSCRIPTION_LIMIT, SUBSCRIPTION_WINDOW),
                 setup_token: Mutex::new(None),
                 pending_totp: Mutex::new(HashMap::new()),
                 tls,
@@ -136,6 +146,14 @@ impl AppState {
 
     pub fn key_limiter(&self) -> &LoginLimiter {
         &self.inner.key_limiter
+    }
+
+    pub fn read_limiter(&self) -> &RequestLimiter {
+        &self.inner.read_limiter
+    }
+
+    pub fn subscription_limiter(&self) -> &RequestLimiter {
+        &self.inner.subscription_limiter
     }
 
     pub fn tls(&self) -> bool {

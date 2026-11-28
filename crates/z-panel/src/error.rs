@@ -53,6 +53,14 @@ impl ApiError {
             "something went wrong on the server",
         )
     }
+
+    /// A request within a rate limit's window: the body and the header both
+    /// say when it may be tried again.
+    pub fn rate_limited(code: &'static str, message: impl Into<String>, seconds: u64) -> Self {
+        let mut error = Self::new(StatusCode::TOO_MANY_REQUESTS, code, message);
+        error.retry_after = Some(seconds);
+        error
+    }
 }
 
 impl From<z_db::DbError> for ApiError {

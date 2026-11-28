@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Z-UI installer: a whole server, from nothing to a panel you can sign in to.
 #
-#   bash <(curl -Ls https://github.com/ZeroNetTeam/Z-UI/releases/latest/download/install.sh)
+#   bash <(curl -Ls https://github.com/zeghostwriter/Z-UI/releases/latest/download/install.sh)
 #
 # It checks the machine, fetches a release and checks its hash (and, with
 # OpenSSL 3, its signature), makes the first admin and a random port and
@@ -15,7 +15,7 @@
 
 set -Eeuo pipefail
 
-REPO="ZeroNetTeam/Z-UI"
+REPO="zeghostwriter/Z-UI"
 RELEASE_BASE="${ZUI_RELEASE_BASE:-https://github.com/${REPO}/releases}"
 # The public half of the key releases are signed with. The panel has the same
 # key built in (a test keeps the two equal).

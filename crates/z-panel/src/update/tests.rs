@@ -99,7 +99,7 @@ async fn handle(State(shared): State<Arc<(Option<Release>, String)>>, uri: Uri) 
         format!("{hash}  z-ui-linux-amd64.tar.gz\n{hash}  z-ui-linux-arm64.tar.gz\n")
     };
     match uri.path() {
-        "/repos/ZeroNetTeam/Z-UI/releases/latest" => {
+        "/repos/zeghostwriter/Z-UI/releases/latest" => {
             let mut assets = vec![
                 ("z-ui-linux-amd64.tar.gz", "/download/archive"),
                 ("z-ui-linux-arm64.tar.gz", "/download/archive"),

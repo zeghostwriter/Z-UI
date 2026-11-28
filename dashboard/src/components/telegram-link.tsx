@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/copy-button";
 import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { api, del, post, type LinkCode, type TelegramInfo } from "@/lib/api";
+import { api, del, post, STALE_TIME, type LinkCode, type TelegramInfo } from "@/lib/api";
 import { formatDate } from "@/lib/users";
 
 const key = ["telegram"] as const;
@@ -16,7 +16,7 @@ export function TelegramLinkCard() {
   const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const [code, setCode] = useState<LinkCode | null>(null);
-  const info = useQuery({ queryKey: key, queryFn: () => api<TelegramInfo>("auth/telegram"), refetchInterval: code ? 3000 : false });
+  const info = useQuery({ queryKey: key, queryFn: () => api<TelegramInfo>("auth/telegram"), staleTime: STALE_TIME.live, refetchInterval: code ? 3000 : false });
   const link = useMutation({ meta: { quiet: true }, mutationFn: () => post<LinkCode>("auth/telegram/link"), onSuccess: setCode });
   const unlink = useMutation({
     mutationFn: (chat: number) => del(`auth/telegram/${chat}`),

@@ -26,6 +26,7 @@ pub mod formats;
 pub mod page;
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use axum::body::Body;
 use axum::extract::{Request, State};
@@ -35,6 +36,7 @@ use axum::response::{IntoResponse, Response};
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 
+use crate::error::ApiError;
 use crate::server::AppState;
 use endpoint::Endpoint;
 
@@ -275,6 +277,20 @@ pub async fn intercept(State(state): State<AppState>, request: Request, next: Ne
             };
             if forced.is_some() && format.is_some() {
                 continue;
+            }
+            // Count before looking the user up: the database read and the
+            // config it builds are the expensive part of a fetch.
+            let address = crate::auth::client_address_of(request.extensions());
+            if let Some(seconds) = state
+                .subscription_limiter()
+                .check(&address.to_string(), Instant::now())
+            {
+                return ApiError::rate_limited(
+                    "too_many_requests",
+                    "too many subscription fetches; wait before asking again",
+                    seconds,
+                )
+                .into_response();
             }
             let query_format = request.uri().query().and_then(|query| {
                 query
@@ -870,5 +886,35 @@ mod tests {
         for public in ["203.0.114.7", "8.8.8.8", "panel.example.com", "2a01:4f8::1"] {
             assert!(!is_local(public), "{public}");
         }
+    }
+
+    #[tokio::test]
+    async fn a_flood_of_fetches_is_refused_by_address() {
+        let panel = crate::server::testing::panel("/").await;
+        // In-process requests have no TCP peer; they all come from this
+        // address, which is the one `intercept` counts.
+        let address = crate::auth::client_address_of(&axum::http::Extensions::new()).to_string();
+        let now = Instant::now();
+        for _ in 0..crate::auth::rate_limit::SUBSCRIPTION_LIMIT {
+            assert_eq!(
+                panel.state.subscription_limiter().check(&address, now),
+                None
+            );
+        }
+
+        let reply = panel.fetch("/sub/a-token-that-does-not-exist", &[]).await;
+        assert_eq!(
+            reply.status,
+            StatusCode::TOO_MANY_REQUESTS,
+            "{}",
+            reply.body
+        );
+        assert_eq!(reply.json()["error"], "too_many_requests");
+        assert!(reply.json()["retry_after"].as_u64().unwrap() > 0);
+        assert!(reply.headers[header::RETRY_AFTER].to_str().unwrap() != "0");
+
+        // The panel's own paths have their own budget and are unaffected.
+        let api = panel.fetch("/api/health", &[]).await;
+        assert_eq!(api.status, StatusCode::UNAUTHORIZED, "{}", api.body);
     }
 }

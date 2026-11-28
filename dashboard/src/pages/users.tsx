@@ -51,7 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { api, del, post, type AdminRow, type BulkAction, type User, type UserCounts, type UserPage, type UserSubscription } from "@/lib/api";
+import { api, del, post, STALE_TIME, type AdminRow, type BulkAction, type User, type UserCounts, type UserPage, type UserSubscription } from "@/lib/api";
 import { authKey } from "@/lib/auth";
 import { useCan, useMe } from "@/lib/permissions";
 import { GB, statuses } from "@/lib/users";
@@ -73,7 +73,9 @@ function useSettled<T>(value: T, ms = 300): T {
 
 export function useUserCounts() {
   const allowed = useCan("users.read");
-  return useQuery({ queryKey: ["users", "counts"], queryFn: () => api<UserCounts>("users/counts"), refetchInterval: 10_000, enabled: allowed });
+  // The count scans the users table; a minute of cache is worth more than a
+  // faster number, and a change invalidates it anyway.
+  return useQuery({ queryKey: ["users", "counts"], queryFn: () => api<UserCounts>("users/counts"), staleTime: STALE_TIME.counts, refetchInterval: 60_000, enabled: allowed });
 }
 
 export function UsersPage() {
@@ -114,7 +116,8 @@ export function UsersPage() {
     queryKey: ["users", "list", params.toString()],
     queryFn: () => api<UserPage>(`users?${params}`),
     placeholderData: keepPreviousData,
-    refetchInterval: 10_000,
+    staleTime: STALE_TIME.counts,
+    refetchInterval: 30_000,
   });
 
   // A reseller's quota counts their users, so it is read again with them.

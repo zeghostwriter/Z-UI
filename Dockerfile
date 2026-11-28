@@ -19,7 +19,7 @@ RUN npm run build
 
 # ---- the panel, from source. zray-core, which it is built on, is fetched here.
 FROM rust:1-bookworm AS builder
-ARG CORE_REPOSITORY=https://github.com/ZeroNetTeam/Zray-Core.git
+ARG CORE_REPOSITORY=https://github.com/zeghostwriter/Zray-Core.git
 ARG CORE_REF=main
 WORKDIR /src
 RUN git clone --depth 1 --branch "${CORE_REF}" "${CORE_REPOSITORY}" resources/zray-core

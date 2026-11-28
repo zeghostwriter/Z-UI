@@ -23,8 +23,12 @@ pub use access::Access;
 /// The address a request came from (the TCP peer; a proxy in front is not
 /// trusted to say otherwise).
 pub fn client_address(parts: &Parts) -> IpAddr {
-    parts
-        .extensions
+    client_address_of(&parts.extensions)
+}
+
+/// The same, for a request that has not been split into parts yet.
+pub fn client_address_of(extensions: &axum::http::Extensions) -> IpAddr {
+    extensions
         .get::<ConnectInfo<SocketAddr>>()
         .map_or(IpAddr::from([0, 0, 0, 0]), |info| info.0.ip())
 }

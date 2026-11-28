@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIcon,
   CpuIcon,
@@ -10,7 +10,7 @@ import {
   WaypointsIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Meter } from "@/components/charts/meter";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -24,7 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, type Health, type SystemView, type TrafficView } from "@/lib/api";
+import { api, STALE_TIME, type Health, type SystemView, type TrafficView } from "@/lib/api";
+import { parseHealthStatus } from "@/lib/health-status";
 import { dayBuckets, hourBuckets } from "@/lib/series";
 import { cn, formatBytes, formatDuration, formatPercent, formatRate } from "@/lib/utils";
 import { useUserCounts } from "@/pages/users";
@@ -36,6 +37,32 @@ const ranges = [
   { id: "30d", days: 30, unit: "day", count: 30 },
   { id: "90d", days: 90, unit: "day", count: 90 },
 ] as const;
+
+/** The live views stop their timers in a hidden tab; the listener below starts them again. */
+const liveInterval = (ms: number) => () => (document.hidden ? false : ms);
+const liveKeys = [["health"], ["monitor"], ["users", "counts"]] as const;
+
+/** Fetch what the hidden tab missed when it becomes visible again. */
+function useForegroundRefresh() {
+  const client = useQueryClient();
+  useEffect(() => {
+    let last = 0;
+    const refresh = () => {
+      if (document.hidden) return;
+      // Both events fire on the way back; one catch-up is enough.
+      const now = Date.now();
+      if (now - last < 250) return;
+      last = now;
+      for (const queryKey of liveKeys) void client.refetchQueries({ queryKey: [...queryKey], type: "active" });
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [client]);
+}
 
 function Tile({
   icon: Icon,
@@ -257,7 +284,8 @@ function TrafficSection() {
     queryKey: ["monitor", "traffic", rangeId],
     queryFn: () => api<TrafficView>(`monitor/traffic?days=${range.days}&top=5`),
     placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    staleTime: STALE_TIME.metrics,
+    refetchInterval: liveInterval(60_000),
   });
   const buckets = useMemo(() => {
     const points = traffic.data?.points ?? [];
@@ -355,6 +383,7 @@ function TrafficSection() {
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
+  useForegroundRefresh();
   // What is shown is what this admin may see: users, the server, the traffic.
   const me = useMe();
   const canUsers = can(me, "users.read");
@@ -363,12 +392,15 @@ export function DashboardPage() {
   const health = useQuery({
     queryKey: ["health"],
     queryFn: () => api<Health>("health"),
-    refetchInterval: 5000,
+    // The live badge may be a second behind, never a minute.
+    staleTime: STALE_TIME.live,
+    refetchInterval: liveInterval(5_000),
   });
   const system = useQuery({
     queryKey: ["monitor", "system"],
     queryFn: () => api<SystemView>("monitor/system?minutes=60"),
-    refetchInterval: 10_000,
+    staleTime: STALE_TIME.metrics,
+    refetchInterval: liveInterval(10_000),
     enabled: canMonitor,
   });
   const counts = useUserCounts();
@@ -376,7 +408,8 @@ export function DashboardPage() {
   const lifetime = useQuery({
     queryKey: ["monitor", "traffic", "lifetime"],
     queryFn: () => api<TrafficView>("monitor/traffic?days=1&top=0"),
-    refetchInterval: 60_000,
+    staleTime: STALE_TIME.metrics,
+    refetchInterval: liveInterval(60_000),
     enabled: canUsers,
   });
   const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
@@ -398,6 +431,7 @@ export function DashboardPage() {
   }
 
   const data = health.data;
+  const coreStatus = parseHealthStatus(data);
   return (
     <>
       <PageHeader title={t("dashboard.title")} subtitle={t("dashboard.subtitle")} action={<QuickActions />} />
@@ -443,9 +477,15 @@ export function DashboardPage() {
 )}
         {!ownOnly && (
 <Tile icon={CpuIcon} title={t("dashboard.core")} hint={data?.core.core_version}>
-          {data ? (
+          {coreStatus.state === "unknown" ? (
+            data ? (
+              <Fine>{t("errors.unknown")}</Fine>
+            ) : (
+              <Skeleton className="h-12" />
+            )
+          ) : (
             <>
-              {data.core.running ? (
+              {coreStatus.state === "running" ? (
                 <Badge variant="success" className="w-fit text-sm">
                   {t("dashboard.running")}
                 </Badge>
@@ -455,17 +495,15 @@ export function DashboardPage() {
                 </Badge>
               )}
               <Fine>
-                {t("monitor.inboundsCount", { count: data.core.inbounds.length })} · Z-UI {data.version}
+                {t("monitor.inboundsCount", { count: data?.core.inbounds.length ?? 0 })} · Z-UI {data?.version}
               </Fine>
             </>
-          ) : (
-            <Skeleton className="h-12" />
           )}
         </Tile>
 )}
       </div>
 
-      {data && !ownOnly && !data.core.running && (
+      {coreStatus.state === "stopped" && !ownOnly && (
         <Card className="mt-4 border-primary/30 bg-primary/5">
           <CardContent className="p-5 text-sm">{t("dashboard.noCore")}</CardContent>
         </Card>

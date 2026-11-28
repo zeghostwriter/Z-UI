@@ -25,7 +25,7 @@ use crate::notify::Event;
 use crate::outbound::{self, Request};
 use crate::server::AppState;
 
-pub const REPO: &str = "ZeroNetTeam/Z-UI";
+pub const REPO: &str = "zeghostwriter/Z-UI";
 /// The public half of the key releases are signed with: Ed25519, 32 bytes,
 /// in base64. The private half is kept by whoever publishes.
 pub const SIGNING_KEY: &str = "GwpOuUsuF4bQ2KIA4TEqJDS716OT2Q4PiSY9GOYHogs=";

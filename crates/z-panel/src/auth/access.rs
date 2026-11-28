@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use std::time::Instant;
 
 use axum::extract::{FromRequestParts, Request, State};
-use axum::http::{header, request::Parts};
+use axum::http::{header, request::Parts, Method};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
@@ -368,10 +368,31 @@ pub async fn guard(
     next: Next,
 ) -> Response {
     let (mut parts, body) = request.into_parts();
+    let read = matches!(parts.method, Method::GET | Method::HEAD);
     let access = match authenticate(&parts, &state).await {
         Ok(access) => access,
         Err(error) => return error.into_response(),
     };
+    if read {
+        // A session and a key have separate budgets: a busy dashboard must
+        // not use up a script's allowance, or the other way around.
+        let key = match &access.via {
+            Via::Key { id, .. } => format!("key:{id}"),
+            _ => format!("session:{}", access.admin.id),
+        };
+        if let Some(seconds) = state.read_limiter().check(&key, Instant::now()) {
+            let mut response = ApiError::rate_limited(
+                "too_many_requests",
+                "too many reads; wait before asking again",
+                seconds,
+            )
+            .into_response();
+            response
+                .extensions_mut()
+                .insert(Actor::of(&access, need.quiet()));
+            return response;
+        }
+    }
     let actor = Actor::of(&access, need.quiet());
     if let Err(error) = need.check(&access, &parts.method) {
         let mut response = error.into_response();

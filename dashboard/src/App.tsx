@@ -11,7 +11,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { Gate } from "@/components/gate";
 import { RequireAdmin } from "@/components/require-admin";
 import i18n from "@/i18n";
-import { setUnauthorizedHandler } from "@/lib/api";
+import { setUnauthorizedHandler, STALE_TIME } from "@/lib/api";
 import { errorText } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { authKey } from "@/lib/auth";
@@ -44,7 +44,7 @@ import { PlaceholderPage } from "@/pages/placeholder";
  * as "Done". `meta.quiet` is for the ones that show their own result.
  */
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: STALE_TIME.view } },
   mutationCache: new MutationCache({
     onSuccess: (_data, _variables, _context, mutation) => {
       if (mutation.meta?.quiet) return;

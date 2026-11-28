@@ -2,7 +2,7 @@
 
 # Z-UI
 
-**A control panel for [zray-core](https://github.com/ZeroNetTeam/Zray-Core)**
+**A control panel for [zray-core](https://github.com/zeghostwriter/Zray-Core)**
 · پنل مدیریت برای zray-core
 
 </div>
@@ -76,7 +76,7 @@ On a Linux server (Ubuntu, Debian, CentOS/Rocky/Alma, Fedora or Arch; x86_64
 or aarch64), as root:
 
 ```sh
-bash <(curl -Ls https://github.com/ZeroNetTeam/Z-UI/releases/latest/download/install.sh)
+bash <(curl -Ls https://github.com/zeghostwriter/Z-UI/releases/latest/download/install.sh)
 ```
 
 It asks a few questions (or take them all as flags, see `--help`), then checks
@@ -108,7 +108,7 @@ one (`z-ui update rollback`).
 docker compose up -d        # docker-compose.yml: host networking, data in ./data
 ```
 
-or `docker run -d --network host -v $PWD/data:/data -e ZUI_ADMIN_USER=admin -e ZUI_ADMIN_PASSWORD=… ghcr.io/zeronetteam/z-ui`.
+or `docker run -d --network host -v $PWD/data:/data -e ZUI_ADMIN_USER=admin -e ZUI_ADMIN_PASSWORD=… ghcr.io/zeghostwriter/z-ui`.
 A container is updated by pulling a new image, not from the panel.
 
 ### Certificates and the panel's address
@@ -127,7 +127,7 @@ set under Settings, or with `z-ui setting show|set|reset`; whatever a flag or a
 Z-UI builds against a checkout of zray-core next to it:
 
 ```sh
-git clone https://github.com/ZeroNetTeam/Zray-Core resources/zray-core
+git clone https://github.com/zeghostwriter/Zray-Core resources/zray-core
 make            # dashboard (npm) + release binary: target/release/z-ui
 ```
 
@@ -212,4 +212,4 @@ make lint    # rustfmt, clippy, TypeScript
 
 GPL-3.0-or-later (see `LICENSE`). Some dashboard files are adapted from
 PasarGuard and keep its AGPL-3.0 terms; [NOTICE.md](NOTICE.md) says which
-and what that means. zray-core itself is MIT.
+and what that means. zray-core itself is GPL-3.0-only.

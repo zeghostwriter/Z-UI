@@ -14,6 +14,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * How long an answer stays fresh after it is fetched. A polling query also
+ * sets its own interval, which asks again even while the answer is fresh, so
+ * the costly reads poll slowly; `staleTime` keeps a remount or a second copy
+ * of a page from asking twice for the same answer.
+ */
+export const STALE_TIME = {
+  /** Live status: a second-old answer is enough, as it refreshes every few seconds. */
+  live: 1_000,
+  /** Server metrics, refreshed on their own timer. */
+  metrics: 5_000,
+  /** User counts and lists, which scan the table. */
+  counts: 45_000,
+  /** Settings and core config, which change only when someone saves them. */
+  settings: 60_000,
+  /** Everything else read once when a page opens. */
+  view: 30_000,
+} as const;
+
 /** Called when the server says the session is gone, to send the user to sign in. */
 let onUnauthorized: (() => void) | undefined;
 export function setUnauthorizedHandler(handler: () => void) {
@@ -62,12 +81,16 @@ export interface NodeStatus {
   core_version: string;
   inbounds: string[];
   active_sessions: number;
+  /** Why the core is in this state, when the node reports one. */
+  reason?: string | null;
 }
 
 export interface Health {
   product: string;
   version: string;
   core: NodeStatus;
+  /** Why the panel is in this state, when it reports one. */
+  reason?: string | null;
 }
 
 export interface RoleRef {

@@ -1,0 +1,6 @@
+# The integration tests start the real core, and applying its config recurses
+# deeper than the 2 MiB a worker thread is given by default, which overflows the
+# stack. A larger default thread stack fixes that. Cargo applies this only to the
+# programs it runs (the test binaries); the release binary is unaffected.
+[env]
+RUST_MIN_STACK = "33554432"
